@@ -6,11 +6,12 @@ Created on Thu May 16 10:24:16 2019
 """
 from PIL import Image
 from math import sqrt
-import os, numpy
+import os, numpy, random
+from Cluster import Cluster
 
 foldername = "C:\\Users\\luken\\Documents\\stackskills\\Clustering-Classification-with-ML-Python\\K-means sorting\\Images_to_sort"
-clusters = { "red" : 0xFF0000, "green" : 0x00FF00, "blue" : 0x0000FF, "violet" : 0xEE82EE, "yellow" : 0xFFFF00, 
-            "orange" : 0xFFA500, "black" : 0x000000, "white" : 0xFFFFFF}
+seed = 123456789
+k = 8
 
 def load_image(filename):
     """loads an image as a 2D array of RGB tuples
@@ -26,20 +27,18 @@ def load_image(filename):
     data = numpy.asarray(image, dtype="uint8" )
     return data
 
-def save_image(image_data, filename, classification):
+def save_image(image_data, path):
     """saves an image to a specfied location
     
     Args:
         image_data (numpy array): 2D collection of RGB values
-        filename (string): the name of the file to save
-        classification (string): the name of the sub-folder to place the image,
-                                specifying its classification
+        path (string): the pathname to save the image to
         
     Returns:
         None
     """
-   image =  Image.fromarray(image_data)
-   image.save(foldername + "\\" + classification + "\\" + filename, mode="RGB")
+    image =  Image.fromarray(image_data)
+    image.save(path, mode="RGB")
 
 def find_avg_color(image_data):
     """determines the average RGB values of a 2D collection of RGB values
@@ -106,46 +105,84 @@ def calc_distance(color1, color2):
     distance = sqrt(pow(R1-R2, 2) + pow(G1-G2, 2) + pow(B1-B2, 2))
     return distance
 
-def classify_image(color):
+def classify_image(color, clusters):
     """determines the closest classifier to the passed color
     
     Args:
         color (integer): a single RGB value for a color
+        clusters (list of Clusters): the different clusters the color can be assigned to
         
     Returns:
         the classification that the color belongs to
     """
     #calculate distance from each mean
     distances = {};
-    for key in clusters:
-        distance = calc_distance(color, clusters[key])
-        distances.update({key : distance})
+    for cluster in clusters:
+        distance = calc_distance(color, cluster.mean)
+        distances.update({cluster : distance})
     #pick smallest distance and add photo
-    smallest_key = list(distances.keys())[0]
+    closest_cluster = list(distances.keys())[0]
     for key in distances:
-        if distances[key] < distances[smallest_key]:
-            smallest_key = key
-    print("average color:", smallest_key)
-    return smallest_key
+        if distances[key] < distances[closest_cluster]:
+            closest_cluster = key
+    print("classification:", closest_cluster.title)
+    return closest_cluster.title
     
+def update_classifiers(color, classification, clusters):
+    """updates the passed classification to inclide the new color assigned to it
+    
+    Args:
+        color (integer): a single RGB value for a color
+        classification (string): the classification the the color belongs to
+        clusters (lsit of Clusters): the different clusters the color can be assigned to
+        
+    Returns:
+        None
+    """
+    current_mean = clusters[classification].mean
+    current_mean *= clusters[classification].numberOfMembers
+    current_mean += color
+    clusters[classification].numberOfMembers += 1
+    current_mean /= clusters[classification].numberOfMembers
+    clusters[classification].mean = int(current_mean)
     
 def main():
-     #create folders to sort photos into
-    for color in clusters:
-        if not os.path.exists(foldername + "\\" + color):
-            os.mkdir(foldername + "\\" + color)
     #get names of files in folder
+    print("finding files...")
     filenames = os.listdir(foldername)
-    for i in range(len(filenames)):
-        split_name = filenames[i].split(".")
+    valid_names = []
+    for filename in filenames:
+        split_name = filename.split(".")
         extension = split_name[len(split_name) - 1] 
         #assign only pictures to a folder
         if(extension == "jpg" or extension == "png"):
-            print(filenames[i])
-            image_data = load_image(foldername + "\\" + filenames[i])
-            color = find_avg_color(numpy.ndarray.tolist(image_data))
-            classification = classify_image(color)
-            save_image(image_data, filenames[i], classification)
+            valid_names.append(filename)
+    filenames = valid_names
+    
+    #create initial clusters
+    clusters = []
+    print("creating initial clusters...")
+    random.seed(seed)
+    for i in range(k):
+        index = random.randint(0, len(filenames))
+        data = load_image(foldername + "\\" + filenames[index])
+        mean = find_avg_color(numpy.ndarray.tolist(data))
+        #create location for cluster photos
+        path = foldername + "\\" + str(i)
+        if not os.path.exists(path):
+            os.mkdir(path)
+        clusters.append(Cluster(i, int(mean), path))
+        save_image(data, path + "\\" + filenames[index])
+        filenames.remove(filenames[index])
+       
+    #classify each photo
+    for filename in filenames: 
+        print("classifying:", filename)
+        image_data = load_image(foldername + "\\" + filename)
+        color = find_avg_color(numpy.ndarray.tolist(image_data))
+        classification = classify_image(int(color), clusters)
+        update_classifiers(color, classification, clusters)
+        save_image(image_data, clusters[classification].path + "\\" + filename)
   
 if __name__== "__main__":
   main()
