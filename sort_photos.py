@@ -12,8 +12,8 @@ from ImageFeatures import ImageFeatures
 
 FOLDERNAME = "C:\\Users\\luken\\Documents\\stackskills\\Clustering-Classification-with-ML-Python\\K-means sorting\\Images_to_sort"
 SEED = 987654321
-K = 8
-NUMBER_OF_ITERATIONS = 300
+K = 5
+NUMBER_OF_ITERATIONS = 50
 
 def load_image(filename):
     """loads an image as a 2D array of RGB tuples
@@ -134,7 +134,7 @@ def update_classifiers(clusters):
         clusters (list of Clusters): the different clusters the color can be assigned to
         
     Returns:
-        None
+       the updated list of clusters
     """
     for cluster in clusters:
         brightness = 0
@@ -153,6 +153,7 @@ def update_classifiers(clusters):
         majorityBlue /= numberOfMembers
         cluster.mean = ImageFeatures(brightness, majorityRed, majorityBlue, 
                                      majorityGreen)
+    return clusters
     
 def main():
     #get names of files in folder
@@ -201,14 +202,16 @@ def main():
             cluster.members = []
         #classify each photo
         for filename in filenames: 
-            print("classifying:", filename)
+            #print("classifying:", filename)
             image_features = images[filename]
             classification = classify_image(image_features, clusters)
             classifications.update({filename : classification})
-            print("classification:", classification)
+            #print("classification:", classification)
         #update the means for classifications after each iteration
-        update_classifiers(clusters)
-       
+        clusters = update_classifiers(clusters)
+        for cluster in clusters:
+            print(cluster.mean.brightness, cluster.mean.majorityRed,
+                  cluster.mean.majorityGreen, cluster.mean.majorityBlue)
     #move photos to appropriate cluster
     print("moving photos...")
     for filename in filenames:   
