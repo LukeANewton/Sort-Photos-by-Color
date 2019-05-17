@@ -121,7 +121,6 @@ def classify_image(features, clusters):
     for key in distances:
         if distances[key] < distances[closest_cluster]:
             closest_cluster = key
-    print("classification:", closest_cluster.title)
     return closest_cluster.title
     
 def update_classifiers(features, classification, clusters):
@@ -162,7 +161,16 @@ def main():
         #assign only pictures to a folder
         if(extension == "jpg" or extension == "png"):
             valid_names.append(filename)
-    filenames = valid_names
+    filenames = list.copy(valid_names)
+    
+    #get features of each image
+    print("finding features...")
+    images = {}
+    for filename in filenames:
+        print("building features for:", filename)
+        data = load_image(foldername + "\\" + filename)
+        features = find_features(filename, numpy.ndarray.tolist(data))
+        images.update({filename : features})
     
     #create initial clusters
     clusters = []
@@ -170,24 +178,24 @@ def main():
     random.seed(seed)
     for i in range(k):
         print("creating cluster:", i)
-        index = random.randint(0, len(filenames))
-        data = load_image(foldername + "\\" + filenames[index])
-        mean = find_features(numpy.ndarray.tolist(data))
+        index = random.randint(0, len(valid_names))
+        initial_mean = images[valid_names[index]]
         #create location for cluster photos
         path = foldername + "\\" + str(i)
         if not os.path.exists(path):
             os.mkdir(path)
-        clusters.append(Cluster(i, mean, path))
-        save_image(data, path + "\\" + filenames[index])
-        filenames.remove(filenames[index])
+        clusters.append(Cluster(i, initial_mean, path))
+        valid_names.remove(valid_names[index])
        
     #classify each photo
     for filename in filenames: 
         print("classifying:", filename)
-        image_data = load_image(foldername + "\\" + filename)
-        features = find_features(filename, numpy.ndarray.tolist(image_data))
-        classification = classify_image(features, clusters)
+        image_features = images[filename]
+        classification = classify_image(image_features, clusters)
+        print("classification:", classification)
         update_classifiers(features, classification, clusters)
+        #move photo to appropriate cluster
+        image_data = load_image(foldername + "\\" + filename)
         save_image(image_data, clusters[classification].path + "\\" + filename)
   
 if __name__== "__main__":

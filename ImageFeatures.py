@@ -5,7 +5,7 @@ Created on Thu May 16 20:10:35 2019
 @author: luken
 """
 
-class Features:
+class ImageFeatures:
     def __init__(self, filename, brightness, majorityRed, majorityGreen, majorityBlue):
         self.filename = filename
         self.brightness = brightness

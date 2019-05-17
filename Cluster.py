@@ -11,3 +11,4 @@ class Cluster:
         self.numberOfMembers = 1
         self.mean = mean
         self.path = path
+        self.members = [mean]
