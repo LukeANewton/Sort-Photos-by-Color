@@ -8,10 +8,10 @@ from PIL import Image
 from math import sqrt
 import os, numpy, random
 from Cluster import Cluster
-from Features import Features
+from ImageFeatures import ImageFeatures
 
 foldername = "C:\\Users\\luken\\Documents\\stackskills\\Clustering-Classification-with-ML-Python\\K-means sorting\\Images_to_sort"
-seed = 69
+seed = 123456789
 k = 8
 
 def load_image(filename):
@@ -81,7 +81,7 @@ def find_features(image_data):
     redMajority /= numberPixels
     greenMajority /= numberPixels
     blueMajority /= numberPixels
-    return Features(brightness, redMajority, greenMajority, blueMajority)
+    return ImageFeatures(brightness, redMajority, greenMajority, blueMajority)
 
 def calc_distance(features1, features2):
     """calculates euclidean distance between 2 image features
