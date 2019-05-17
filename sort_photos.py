@@ -8,9 +8,10 @@ from PIL import Image
 from math import sqrt
 import os, numpy, random
 from Cluster import Cluster
+from Features import Features
 
 foldername = "C:\\Users\\luken\\Documents\\stackskills\\Clustering-Classification-with-ML-Python\\K-means sorting\\Images_to_sort"
-seed = 123456789
+seed = 69
 k = 8
 
 def load_image(filename):
@@ -40,76 +41,71 @@ def save_image(image_data, path):
     image =  Image.fromarray(image_data)
     image.save(path, mode="RGB")
 
-def find_avg_color(image_data):
-    """determines the average RGB values of a 2D collection of RGB values
+def find_features(image_data):
+    """determines the features of an image based on pixel data
     
     Args:
-        image_data (numpy array): 2D collection of RGB values
+        image_data (2D list of RGB tuples): a collection of an image's pixels
         
     Returns:
-        the average RGB value as a single hex value
+        A Features object containing the feature information of the image data
     """
-    avg_R = 0
-    avg_G = 0
-    avg_B = 0
+    brightness = 0
+    redMajority = 0
+    greenMajority = 0
+    blueMajority = 0
+    numberPixels = len(image_data) * len(image_data[0])
     for row in image_data:
         for pixel in row:
-            avg_R += pixel[0]
-            avg_G += pixel[1]
-            avg_B += pixel[2]
-    avg_R /= len(image_data)*len(image_data[0])
-    avg_G /= len(image_data)*len(image_data[0])
-    avg_B /= len(image_data)*len(image_data[0])
-    avg_color = mergeRGB(avg_R, avg_G, avg_B)
-    return avg_color
+            brightness += (pixel[0]+pixel[1]+pixel[2])/3
+            if(pixel[0] > pixel[1] and pixel[0] > pixel[2]):
+                redMajority += 1
+            elif(pixel[1] > pixel[0] and pixel[1] > pixel[2]):
+                greenMajority += 1
+            elif(pixel[2] > pixel[0] and pixel[2] > pixel[1]):
+                blueMajority += 1
+            elif(pixel[0] == pixel[1]):
+                redMajority += 1
+                greenMajority += 1
+            elif(pixel[1] == pixel[2]):
+                blueMajority += 1
+                greenMajority += 1
+            elif(pixel[0] == pixel[2]):
+                redMajority += 1
+                blueMajority += 1
+            else:
+                redMajority += 1
+                greenMajority += 1
+                blueMajority += 1
+    brightness /= numberPixels
+    redMajority /= numberPixels
+    greenMajority /= numberPixels
+    blueMajority /= numberPixels
+    return Features(brightness, redMajority, greenMajority, blueMajority)
 
-def splitRGB(color):
-    """splits a single RGB hex value into 3 values for red, green, and blue
+def calc_distance(features1, features2):
+    """calculates euclidean distance between 2 image features
     
     Args:
-        color (integer): RGB value as a single number
+        features1 (Features): the color features of an image
+        features2 (Features): the color features of an second image
         
     Returns:
-        3 integers for the red, green, and blue values of the input, in that order
+        the distance between those two features
     """
-    R = color >> 16
-    G = (color >> 8) % pow(16, 2)
-    B = color % pow(16, 2)
-    return R, G, B
-
-def mergeRGB(R, G, B):
-    """combines 3 values for red, green, and blue into a single RGB hex integer
-    
-    Args:
-        R (integer): red value
-        G (integer): green value
-        B (integer): blue value
-        
-    Returns:
-        a single RGB integer value
-    """
-    return (int(R) << 16) |  (int(G) << 8) | int(B)
-
-def calc_distance(color1, color2):
-    """calculates euclidean distance between 2 color values
-    
-    Args:
-        color1 (integer): single RGB value for a color
-        color2 (integer): single RGB value for a second color
-        
-    Returns:
-        the distance between those two colors
-    """
-    R1, G1, B1 = splitRGB(color1)
-    R2, G2, B2 = splitRGB(color2)
-    distance = sqrt(pow(R1-R2, 2) + pow(G1-G2, 2) + pow(B1-B2, 2))
+    red_difference = features1.majorityRed - features2.majorityRed
+    blue_difference = features1.majorityBlue - features2.majorityBlue
+    green_difference = features1.majorityGreen - features2.majorityGreen
+    brightness_difference = features1.brightness - features2.brightness
+    distance = sqrt(pow(red_difference, 2) + pow(green_difference, 2) 
+        + pow(blue_difference, 2) + pow(brightness_difference, 2))
     return distance
 
-def classify_image(color, clusters):
-    """determines the closest classifier to the passed color
+def classify_image(features, clusters):
+    """determines the closest classifier to the passed image feature set
     
     Args:
-        color (integer): a single RGB value for a color
+        features (Features): the color features of an image
         clusters (list of Clusters): the different clusters the color can be assigned to
         
     Returns:
@@ -118,7 +114,7 @@ def classify_image(color, clusters):
     #calculate distance from each mean
     distances = {};
     for cluster in clusters:
-        distance = calc_distance(color, cluster.mean)
+        distance = calc_distance(features, cluster.mean)
         distances.update({cluster : distance})
     #pick smallest distance and add photo
     closest_cluster = list(distances.keys())[0]
@@ -128,23 +124,32 @@ def classify_image(color, clusters):
     print("classification:", closest_cluster.title)
     return closest_cluster.title
     
-def update_classifiers(color, classification, clusters):
-    """updates the passed classification to inclide the new color assigned to it
+def update_classifiers(features, classification, clusters):
+    """updates the passed classification to include the new image assigned to it
     
     Args:
-        color (integer): a single RGB value for a color
-        classification (string): the classification the the color belongs to
-        clusters (lsit of Clusters): the different clusters the color can be assigned to
+        features (Features): the color features of an image
+        classification (integer): the classification the the color belongs to
+        clusters (list of Clusters): the different clusters the color can be assigned to
         
     Returns:
         None
     """
     current_mean = clusters[classification].mean
-    current_mean *= clusters[classification].numberOfMembers
-    current_mean += color
+    current_mean.brightness *= clusters[classification].numberOfMembers
+    current_mean.majorityRed *= clusters[classification].numberOfMembers
+    current_mean.majorityGreen *= clusters[classification].numberOfMembers
+    current_mean.majorityBlue *= clusters[classification].numberOfMembers
+    current_mean.brightness += features.brightness
+    current_mean.majorityRed += features.majorityRed
+    current_mean.majorityGreen += features.majorityGreen
+    current_mean.majorityBlue += features.majorityBlue
     clusters[classification].numberOfMembers += 1
-    current_mean /= clusters[classification].numberOfMembers
-    clusters[classification].mean = int(current_mean)
+    current_mean.brightness /= clusters[classification].numberOfMembers
+    current_mean.majorityRed /= clusters[classification].numberOfMembers
+    current_mean.majorityGreen /= clusters[classification].numberOfMembers
+    current_mean.majorityBlue /= clusters[classification].numberOfMembers
+    clusters[classification].mean = current_mean
     
 def main():
     #get names of files in folder
@@ -164,14 +169,15 @@ def main():
     print("creating initial clusters...")
     random.seed(seed)
     for i in range(k):
+        print("creating cluster:", i)
         index = random.randint(0, len(filenames))
         data = load_image(foldername + "\\" + filenames[index])
-        mean = find_avg_color(numpy.ndarray.tolist(data))
+        mean = find_features(numpy.ndarray.tolist(data))
         #create location for cluster photos
         path = foldername + "\\" + str(i)
         if not os.path.exists(path):
             os.mkdir(path)
-        clusters.append(Cluster(i, int(mean), path))
+        clusters.append(Cluster(i, mean, path))
         save_image(data, path + "\\" + filenames[index])
         filenames.remove(filenames[index])
        
@@ -179,9 +185,9 @@ def main():
     for filename in filenames: 
         print("classifying:", filename)
         image_data = load_image(foldername + "\\" + filename)
-        color = find_avg_color(numpy.ndarray.tolist(image_data))
-        classification = classify_image(int(color), clusters)
-        update_classifiers(color, classification, clusters)
+        features = find_features(numpy.ndarray.tolist(image_data))
+        classification = classify_image(features, clusters)
+        update_classifiers(features, classification, clusters)
         save_image(image_data, clusters[classification].path + "\\" + filename)
   
 if __name__== "__main__":
