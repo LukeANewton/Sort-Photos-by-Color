@@ -8,7 +8,6 @@ Created on Thu May 16 15:48:54 2019
 class Cluster:
     def __init__(self, title, mean, path):
         self.title = title
-        self.numberOfMembers = 1
         self.mean = mean
         self.path = path
-        self.members = [mean]
+        self.members = []

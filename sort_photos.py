@@ -10,9 +10,10 @@ import os, numpy, random
 from Cluster import Cluster
 from ImageFeatures import ImageFeatures
 
-foldername = "C:\\Users\\luken\\Documents\\stackskills\\Clustering-Classification-with-ML-Python\\K-means sorting\\Images_to_sort"
-seed = 123456789
-k = 8
+FOLDERNAME = "C:\\Users\\luken\\Documents\\stackskills\\Clustering-Classification-with-ML-Python\\K-means sorting\\Images_to_sort"
+SEED = 987654321
+K = 8
+NUMBER_OF_ITERATIONS = 300
 
 def load_image(filename):
     """loads an image as a 2D array of RGB tuples
@@ -41,14 +42,14 @@ def save_image(image_data, path):
     image =  Image.fromarray(image_data)
     image.save(path, mode="RGB")
 
-def find_features(filename, image_data):
+def find_features(image_data):
     """determines the features of an image based on pixel data
     
     Args:
         image_data (2D list of RGB tuples): a collection of an image's pixels
         
     Returns:
-        A Features object containing the feature information of the image data
+        An ImageFeatures object containing the feature information of the image data
     """
     brightness = 0
     redMajority = 0
@@ -81,14 +82,14 @@ def find_features(filename, image_data):
     redMajority /= numberPixels
     greenMajority /= numberPixels
     blueMajority /= numberPixels
-    return ImageFeatures(filename, brightness, redMajority, greenMajority, blueMajority)
+    return ImageFeatures(brightness, redMajority, greenMajority, blueMajority)
 
 def calc_distance(features1, features2):
     """calculates euclidean distance between 2 image features
     
     Args:
-        features1 (Features): the color features of an image
-        features2 (Features): the color features of an second image
+        features1 (ImageFeatures): the color features of an image
+        features2 (ImageFeatures): the color features of an second image
         
     Returns:
         the distance between those two features
@@ -97,6 +98,7 @@ def calc_distance(features1, features2):
     blue_difference = features1.majorityBlue - features2.majorityBlue
     green_difference = features1.majorityGreen - features2.majorityGreen
     brightness_difference = features1.brightness - features2.brightness
+    
     distance = sqrt(pow(red_difference, 2) + pow(green_difference, 2) 
         + pow(blue_difference, 2) + pow(brightness_difference, 2))
     return distance
@@ -121,39 +123,41 @@ def classify_image(features, clusters):
     for key in distances:
         if distances[key] < distances[closest_cluster]:
             closest_cluster = key
+            
+    closest_cluster.members.append(features)
     return closest_cluster.title
     
-def update_classifiers(features, classification, clusters):
-    """updates the passed classification to include the new image assigned to it
+def update_classifiers(clusters):
+    """updates the mean of each Cluster in the passed list to match its members
     
     Args:
-        features (Features): the color features of an image
-        classification (integer): the classification the the color belongs to
         clusters (list of Clusters): the different clusters the color can be assigned to
         
     Returns:
         None
     """
-    current_mean = clusters[classification].mean
-    current_mean.brightness *= clusters[classification].numberOfMembers
-    current_mean.majorityRed *= clusters[classification].numberOfMembers
-    current_mean.majorityGreen *= clusters[classification].numberOfMembers
-    current_mean.majorityBlue *= clusters[classification].numberOfMembers
-    current_mean.brightness += features.brightness
-    current_mean.majorityRed += features.majorityRed
-    current_mean.majorityGreen += features.majorityGreen
-    current_mean.majorityBlue += features.majorityBlue
-    clusters[classification].numberOfMembers += 1
-    current_mean.brightness /= clusters[classification].numberOfMembers
-    current_mean.majorityRed /= clusters[classification].numberOfMembers
-    current_mean.majorityGreen /= clusters[classification].numberOfMembers
-    current_mean.majorityBlue /= clusters[classification].numberOfMembers
-    clusters[classification].mean = current_mean
+    for cluster in clusters:
+        brightness = 0
+        majorityRed = 0
+        majorityGreen = 0
+        majorityBlue = 0
+        numberOfMembers = len(cluster.members)
+        for image in cluster.members:
+            brightness += image.brightness
+            majorityRed += image.majorityRed
+            majorityGreen += image.majorityGreen
+            majorityBlue += image.majorityBlue
+        brightness /= numberOfMembers
+        majorityRed /= numberOfMembers
+        majorityGreen /= numberOfMembers
+        majorityBlue /= numberOfMembers
+        cluster.mean = ImageFeatures(brightness, majorityRed, majorityBlue, 
+                                     majorityGreen)
     
 def main():
     #get names of files in folder
     print("finding files...")
-    filenames = os.listdir(foldername)
+    filenames = os.listdir(FOLDERNAME)
     valid_names = []
     for filename in filenames:
         split_name = filename.split(".")
@@ -168,34 +172,49 @@ def main():
     images = {}
     for filename in filenames:
         print("building features for:", filename)
-        data = load_image(foldername + "\\" + filename)
-        features = find_features(filename, numpy.ndarray.tolist(data))
+        data = load_image(FOLDERNAME + "\\" + filename)
+        features = find_features(numpy.ndarray.tolist(data))
         images.update({filename : features})
     
     #create initial clusters
     clusters = []
     print("creating initial clusters...")
-    random.seed(seed)
-    for i in range(k):
+    random.seed(SEED)
+    for i in range(K):
         print("creating cluster:", i)
-        index = random.randint(0, len(valid_names))
+        index = random.randint(0, len(valid_names) - 1)
         initial_mean = images[valid_names[index]]
         #create location for cluster photos
-        path = foldername + "\\" + str(i)
+        path = FOLDERNAME + "\\" + str(i)
         if not os.path.exists(path):
             os.mkdir(path)
         clusters.append(Cluster(i, initial_mean, path))
         valid_names.remove(valid_names[index])
        
-    #classify each photo
-    for filename in filenames: 
-        print("classifying:", filename)
-        image_features = images[filename]
-        classification = classify_image(image_features, clusters)
-        print("classification:", classification)
-        update_classifiers(features, classification, clusters)
-        #move photo to appropriate cluster
-        image_data = load_image(foldername + "\\" + filename)
+    #perform several iterations of clasification until convergence
+    classifications = {}
+    print("classifying images...")
+    for i in range(NUMBER_OF_ITERATIONS):
+        print("iteration", (i + 1), "of", NUMBER_OF_ITERATIONS)
+        #reset members on each iteration
+        for cluster in clusters:
+            cluster.members = []
+        #classify each photo
+        for filename in filenames: 
+            print("classifying:", filename)
+            image_features = images[filename]
+            classification = classify_image(image_features, clusters)
+            classifications.update({filename : classification})
+            print("classification:", classification)
+        #update the means for classifications after each iteration
+        update_classifiers(clusters)
+       
+    #move photos to appropriate cluster
+    print("moving photos...")
+    for filename in filenames:   
+        print("saving", filename)
+        image_data = load_image(FOLDERNAME + "\\" + filename)
+        classification = classifications[filename]
         save_image(image_data, clusters[classification].path + "\\" + filename)
   
 if __name__== "__main__":

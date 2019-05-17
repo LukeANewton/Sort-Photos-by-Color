@@ -6,8 +6,7 @@ Created on Thu May 16 20:10:35 2019
 """
 
 class ImageFeatures:
-    def __init__(self, filename, brightness, majorityRed, majorityGreen, majorityBlue):
-        self.filename = filename
+    def __init__(self, brightness, majorityRed, majorityGreen, majorityBlue):
         self.brightness = brightness
         self.majorityRed = majorityRed
         self.majorityGreen = majorityGreen
