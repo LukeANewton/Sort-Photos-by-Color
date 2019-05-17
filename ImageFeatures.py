@@ -6,8 +6,8 @@ Created on Thu May 16 20:10:35 2019
 """
 
 class Features:
-    def __init__(self, pathname, brightness, majorityRed, majorityGreen, majorityBlue):
-        self.pathname = pathname
+    def __init__(self, filename, brightness, majorityRed, majorityGreen, majorityBlue):
+        self.filename = filename
         self.brightness = brightness
         self.majorityRed = majorityRed
         self.majorityGreen = majorityGreen

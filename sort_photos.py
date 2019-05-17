@@ -41,7 +41,7 @@ def save_image(image_data, path):
     image =  Image.fromarray(image_data)
     image.save(path, mode="RGB")
 
-def find_features(image_data):
+def find_features(filename, image_data):
     """determines the features of an image based on pixel data
     
     Args:
@@ -81,7 +81,7 @@ def find_features(image_data):
     redMajority /= numberPixels
     greenMajority /= numberPixels
     blueMajority /= numberPixels
-    return ImageFeatures(brightness, redMajority, greenMajority, blueMajority)
+    return ImageFeatures(filename, brightness, redMajority, greenMajority, blueMajority)
 
 def calc_distance(features1, features2):
     """calculates euclidean distance between 2 image features
@@ -185,7 +185,7 @@ def main():
     for filename in filenames: 
         print("classifying:", filename)
         image_data = load_image(foldername + "\\" + filename)
-        features = find_features(numpy.ndarray.tolist(image_data))
+        features = find_features(filename, numpy.ndarray.tolist(image_data))
         classification = classify_image(features, clusters)
         update_classifiers(features, classification, clusters)
         save_image(image_data, clusters[classification].path + "\\" + filename)
